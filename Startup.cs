@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using AutoMapper;
 using DatingApp.API.Data;
 using DatingApp.API.Helpers;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -29,9 +30,8 @@ namespace DatingApp.API
             Configuration = configuration;
         }
 
-    
-
-         public IConfiguration Configuration { get; }
+  
+        public IConfiguration Configuration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
@@ -39,10 +39,17 @@ namespace DatingApp.API
             services.AddDbContext<ApplicationDbContext>(c => c.UseSqlServer(
                 Configuration.GetConnectionString("DefaultConnection")
             ));
-            services.AddControllers();
+            services.AddControllers().AddNewtonsoftJson(options => {
+
+                  options.SerializerSettings.ReferenceLoopHandling =
+                  Newtonsoft.Json.ReferenceLoopHandling.Ignore;
+            });
+            
             services.AddCors();
+            services.AddAutoMapper(typeof(DatingRepository).Assembly);
             services.AddScoped<IAuthRepository, AuthRepository>();
-          
+            services.AddScoped<IDatingRepository, DatingRepository>();
+
             //Authentication Middleware
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
@@ -58,6 +65,8 @@ namespace DatingApp.API
             });
         }
 
+
+
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
@@ -67,14 +76,15 @@ namespace DatingApp.API
             }
             else
             {
-                app.UseExceptionHandler(builder => 
-                 builder.Run(async context => {
+                app.UseExceptionHandler(builder =>
+                 builder.Run(async context =>
+                 {
                      context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
                      var error = context.Features.Get<IExceptionHandlerFeature>();
-                     if(error != null){
-
-                        context.Response.AddApplicationError(error.Error.Message);
-                        await context.Response.WriteAsync(error.Error.Message);
+                     if (error != null)
+                     {
+                         context.Response.AddApplicationError(error.Error.Message);
+                         await context.Response.WriteAsync(error.Error.Message);
                      }
                  })
                 );
